@@ -22,7 +22,7 @@ Application Python avec la bibliothèque Streamlit pour exécuter en sécurité 
   - bcrypt
   - pandas
   - openpyxl
-- Driver ODBC pour SQL Server installé (ex: ODBC Driver 17)
+- Driver ODBC pour SQL Server installé ODBC Driver 17
 
 ## Installation
 
