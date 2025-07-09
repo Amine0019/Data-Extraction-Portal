@@ -1,4 +1,4 @@
-# Projet Data Extraction Portal
+# Data Extraction Portal
 
 ## Description
 
