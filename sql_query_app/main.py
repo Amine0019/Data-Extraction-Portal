@@ -37,7 +37,7 @@ if st.session_state.get("role") == "Admin":
             ok, msg = user_manager.add_user(username, password, role, is_active)
             if ok:
                 st.success(msg)
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.error(msg)
 
@@ -63,7 +63,7 @@ if st.session_state.get("role") == "Admin":
                 ok, msg = user_manager.update_user(user[0], fields)
                 if ok:
                     st.success(msg)
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error(msg)
         else:
@@ -85,7 +85,7 @@ if st.session_state.get("role") == "Admin":
                     ok, msg = user_manager.delete_user(user[0], st.session_state["user_id"])
                     if ok:
                         st.success(msg)
-                        st.experimental_rerun()
+                        st.rerun()
                     else:
                         st.error(msg)
         else:
