@@ -24,8 +24,25 @@ def authenticate(username, password):
     else:
         return None, "Nom d'utilisateur inconnu."
 
+def redirect_by_role():
+    role = st.session_state.get("role")
+    if role == "Admin":
+        st.switch_page("pages/admin.py")
+    elif role == "Analyste":
+        st.switch_page("pages/analyst.py")
+    elif role == "Utilisateur":
+        st.switch_page("pages/user.py")
+    else:
+        st.error("Rôle inconnu ou non authentifié.")
+        st.stop()
+
 def login_form():
-    st.title("Connexion au portail Data Extraction")
+    st.markdown("""
+        <style>
+        [data-testid="stSidebar"] {display: none !important;}
+        </style>
+    """, unsafe_allow_html=True)
+    st.title("Bienvenue – Identifiez‑vous")
     with st.form("login_form"):
         username = st.text_input("Nom d'utilisateur")
         password = st.text_input("Mot de passe", type="password")
@@ -38,21 +55,17 @@ def login_form():
             st.session_state["username"] = user["username"]
             st.session_state["user_id"] = user["user_id"]
             st.session_state["role"] = user["role"]
-            st.rerun()
+            redirect_by_role()
     if error:
         st.error(error)
 
-def require_login(roles=None):
+def require_login():
     if not st.session_state.get("authenticated"):
         login_form()
         st.stop()
-    if roles:
-        if st.session_state.get("role") not in roles:
-            st.error("Accès refusé : rôle insuffisant.")
-            st.stop()
 
 def logout_button():
     st.sidebar.markdown(f"**Connecté en tant que :** {st.session_state.get('username', '')}")
-    if st.sidebar.button("Se déconnecter"):
+    if st.sidebar.button("🔓 Se déconnecter"):
         st.session_state.clear()
         st.rerun()
