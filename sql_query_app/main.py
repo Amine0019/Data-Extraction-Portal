@@ -1,12 +1,10 @@
 import streamlit as st
 import pandas as pd
-from modules import user_manager
+from modules import user_manager, auth
 
-# --- Simuler une session pour le test (à remplacer par votre logique d'authentification réelle) ---
-if "role" not in st.session_state:
-    st.session_state["role"] = "Admin"  # Pour test, à remplacer par la vraie session
-if "user_id" not in st.session_state:
-    st.session_state["user_id"] = 1      # Pour test, à remplacer par la vraie session
+auth.require_login()  # Oblige la connexion pour accéder à la page
+
+auth.logout_button()  # Affiche le bouton de déconnexion dans la sidebar
 
 # --- Onglet Admin : Gestion des utilisateurs ---
 if st.session_state.get("role") == "Admin":
@@ -27,7 +25,7 @@ if st.session_state.get("role") == "Admin":
     with tab2:
         st.subheader("Ajouter un utilisateur")
         with st.form("add_user_form"):
-            username = st.text_input("Nom d'utilisateur (alphanumérique, unique)")
+            username = st.text_input("Nom d'utilisateur (lettres et underscore, unique)")
             password = st.text_input("Mot de passe (min. 8 caractères)", type="password")
             role = st.selectbox("Rôle", ["Admin", "Analyste", "Utilisateur"])
             actif_label = st.selectbox("Actif ?", ["is_active", "not_active"])
