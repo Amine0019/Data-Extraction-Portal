@@ -1,42 +1,38 @@
 import streamlit as st
+import pandas as pd
 from modules import user_manager
 
-# --- Contrôle d'accès ---
-# if "role" not in st.session_state:
-#     st.error("Vous devez être authentifié pour accéder à cette page.")
-#     st.stop()
-# if st.session_state["role"] != "Admin":
-#     st.error("Accès réservé aux administrateurs.")
-#     st.stop()
+# --- Simuler une session pour le test (à remplacer par votre logique d'authentification réelle) ---
+if "role" not in st.session_state:
+    st.session_state["role"] = "Admin"  # Pour test, à remplacer par la vraie session
+if "user_id" not in st.session_state:
+    st.session_state["user_id"] = 1      # Pour test, à remplacer par la vraie session
 
-# Pour test sans authentification :
-st.session_state["role"] = "Admin"
-st.session_state["user_id"] = 1  # ID admin fictif pour test
+# --- Onglet Admin : Gestion des utilisateurs ---
+if st.session_state.get("role") == "Admin":
+    st.sidebar.title("Admin")
+    st.sidebar.success("Accès Admin confirmé")
+    st.title("Gestion des utilisateurs")
 
-st.title("Gestion des utilisateurs")
+    tab1, tab2, tab3, tab4 = st.tabs(["🔍 Liste", "➕ Ajouter", "✏️ Modifier", "🗑 Supprimer"])
 
-# --- Onglets CRUD ---
-tabs = st.tabs(["Liste des utilisateurs", "Ajouter", "Modifier", "Supprimer"])
+    # --- LIRE ---
+    with tab1:
+        users = user_manager.get_all_users()
+        df = pd.DataFrame(users, columns=["ID", "Nom d'utilisateur", "Rôle", "Actif"])
+        df["Actif"] = df["Actif"].map({1: "is_active", 0: "not_active"})
+        st.dataframe(df, use_container_width=True)
 
-# --- 1. Lister les utilisateurs ---
-with tabs[0]:
-    users = user_manager.get_all_users()
-    st.subheader("Utilisateurs existants")
-    st.dataframe(
-        [{"ID": u[0], "Nom d'utilisateur": u[1], "Rôle": u[2], "Actif ?": "is_active" if u[3] else "not_active"} for u in users],
-        hide_index=True
-    )
-
-# --- 2. Ajouter un utilisateur ---
-with tabs[1]:
-    st.subheader("Ajouter un utilisateur")
-    with st.form("add_user_form"):
-        username = st.text_input("Nom d'utilisateur (alphanumérique, unique)")
-        password = st.text_input("Mot de passe (min. 8 caractères)", type="password")
-        role = st.selectbox("Rôle", ["Admin", "Analyste", "Utilisateur"])
-        actif_label = st.selectbox("Actif ?", ["is_active", "not_active"])
-        is_active = 1 if actif_label == "is_active" else 0
-        submitted = st.form_submit_button("Ajouter")
+    # --- AJOUTER ---
+    with tab2:
+        st.subheader("Ajouter un utilisateur")
+        with st.form("add_user_form"):
+            username = st.text_input("Nom d'utilisateur (alphanumérique, unique)")
+            password = st.text_input("Mot de passe (min. 8 caractères)", type="password")
+            role = st.selectbox("Rôle", ["Admin", "Analyste", "Utilisateur"])
+            actif_label = st.selectbox("Actif ?", ["is_active", "not_active"])
+            is_active = 1 if actif_label == "is_active" else 0
+            submitted = st.form_submit_button("Ajouter")
         if submitted:
             ok, msg = user_manager.add_user(username, password, role, is_active)
             if ok:
@@ -45,64 +41,54 @@ with tabs[1]:
             else:
                 st.error(msg)
 
-# --- 3. Modifier un utilisateur ---
-with tabs[2]:
-    st.subheader("Modifier un utilisateur")
-    users = user_manager.get_all_users()
-    user_choices = {f"{u[1]} (ID {u[0]})": u for u in users}
-    if user_choices:
-        selected = st.selectbox("Sélectionner un utilisateur", list(user_choices.keys()))
-        user = user_choices.get(selected)
-        if user:
+    # --- MODIFIER ---
+    with tab3:
+        st.subheader("Modifier un utilisateur")
+        users = user_manager.get_all_users()
+        if users:
+            user_dict = {f"{u[1]} (id={u[0]})": u for u in users}
+            selected = st.selectbox("Sélectionner un utilisateur à modifier", list(user_dict.keys()), key="mod_select")
+            user = user_dict[selected]
             with st.form("edit_user_form"):
                 new_username = st.text_input("Nom d'utilisateur", value=user[1])
-                new_password = st.text_input("Nouveau mot de passe (laisser vide pour ne pas changer)", type="password")
+                new_password = st.text_input("Nouveau mot de passe (laisser vide pour inchangé)", type="password")
                 new_role = st.selectbox("Rôle", ["Admin", "Analyste", "Utilisateur"], index=["Admin", "Analyste", "Utilisateur"].index(user[2]))
-                actif_label = st.selectbox("Actif ?", ["is_active", "not_active"], index=0 if user[3] else 1)
-                is_active = 1 if actif_label == "is_active" else 0
-                submitted = st.form_submit_button("Modifier")
-                if submitted:
-                    fields = {}
-                    if new_username != user[1]:
-                        fields["username"] = new_username
-                    if new_password:
-                        fields["password"] = new_password
-                    if new_role != user[2]:
-                        fields["role"] = new_role
-                    if is_active != user[3]:
-                        fields["is_active"] = is_active
-                    if not fields:
-                        st.info("Aucune modification détectée.")
-                    else:
-                        ok, msg = user_manager.update_user(user[0], fields)
-                        if ok:
-                            st.success(msg)
-                            st.experimental_rerun()
-                        else:
-                            st.error(msg)
-    else:
-        st.info("Aucun utilisateur à modifier.")
+                actif_label = st.selectbox("Actif ?", ["is_active", "not_active"], index=0 if user[3] == 1 else 1)
+                new_is_active = 1 if actif_label == "is_active" else 0
+                update_btn = st.form_submit_button("Enregistrer les modifications")
+            if update_btn:
+                fields = {"username": new_username, "role": new_role, "is_active": new_is_active}
+                if new_password:
+                    fields["password"] = new_password
+                ok, msg = user_manager.update_user(user[0], fields)
+                if ok:
+                    st.success(msg)
+                    st.experimental_rerun()
+                else:
+                    st.error(msg)
+        else:
+            st.info("Aucun utilisateur à afficher.")
 
-# --- 4. Supprimer un utilisateur ---
-with tabs[3]:
-    st.subheader("Supprimer un utilisateur")
-    users = user_manager.get_all_users()
-    user_choices = {f"{u[1]} (ID {u[0]})": u for u in users}
-    if user_choices:
-        selected = st.selectbox("Sélectionner un utilisateur à supprimer", list(user_choices.keys()))
-        user = user_choices.get(selected)
-        current_admin_id = st.session_state.get("user_id")
-        if user:
-            if user[0] == current_admin_id:
+    # --- SUPPRIMER ---
+    with tab4:
+        st.subheader("Supprimer un utilisateur")
+        users = user_manager.get_all_users()
+        if users:
+            user_dict = {f"{u[1]} (id={u[0]})": u for u in users}
+            selected = st.selectbox("Sélectionner un utilisateur à supprimer", list(user_dict.keys()), key="del_select")
+            user = user_dict[selected]
+            if user[0] == st.session_state["user_id"]:
                 st.warning("Vous ne pouvez pas supprimer votre propre compte.")
-                st.button("Supprimer", disabled=True)
+                st.button("Supprimer", disabled=True, key="del_btn_disabled")
             else:
-                if st.button("Supprimer"):
-                    ok, msg = user_manager.delete_user(user[0], current_admin_id)
+                if st.button("Supprimer", key=f"delete_{user[0]}"):
+                    ok, msg = user_manager.delete_user(user[0], st.session_state["user_id"])
                     if ok:
                         st.success(msg)
                         st.experimental_rerun()
                     else:
                         st.error(msg)
-    else:
-        st.info("Aucun utilisateur à supprimer.")
+        else:
+            st.info("Aucun utilisateur à afficher.")
+else:
+    st.warning("Accès réservé à l'administrateur.")
