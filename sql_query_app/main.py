@@ -27,7 +27,7 @@ logout_button()
 if selected != "Accueil":
     st.switch_page(pages[selected])
 
-st.title("Portail Data Extraction")
+st.title(" Data Extraction Portal ")
 st.info(f"Bienvenue, {st.session_state.get('username', '')} (rôle : {role})")
 
 st.write("""
