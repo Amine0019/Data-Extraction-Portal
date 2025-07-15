@@ -8,9 +8,6 @@ if st.session_state.get("role") != "Admin":
 
 st.set_page_config(page_title="Admin - Gestion des utilisateurs", initial_sidebar_state="expanded")
 
-# Sidebar minimaliste : uniquement cette page
-st.sidebar.title("Admin")
-st.sidebar.markdown("Gestion des utilisateurs")
 auth.logout_button()
 
 st.title("Gestion des utilisateurs")

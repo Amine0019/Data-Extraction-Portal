@@ -8,9 +8,6 @@ if st.session_state.get("role") != "Utilisateur":
 
 st.set_page_config(page_title="Utilisateur", initial_sidebar_state="expanded")
 
-# Sidebar minimaliste : uniquement cette page
-st.sidebar.title("Utilisateur")
-st.sidebar.markdown("Espace utilisateur")
 auth.logout_button()
 
 st.title("Interface Utilisateur")

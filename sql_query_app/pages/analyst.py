@@ -8,9 +8,6 @@ if st.session_state.get("role") != "Analyste":
 
 st.set_page_config(page_title="Analyste", initial_sidebar_state="expanded")
 
-# Sidebar minimaliste : uniquement cette page
-st.sidebar.title("Analyste")
-st.sidebar.markdown("Fonctions analyste")
 auth.logout_button()
 
 st.title("Interface Analyste")

@@ -1,9 +1,37 @@
 import streamlit as st
-from modules.auth import require_login, redirect_by_role
+from modules.auth import require_login, logout_button
 
-st.set_page_config(initial_sidebar_state="collapsed", page_title="Redirect")
+st.set_page_config(initial_sidebar_state="expanded", page_title="Accueil")
 
 require_login()
-redirect_by_role()
+
+role = st.session_state.get("role")
+
+# Construction de la sidebar conditionnelle
+st.sidebar.title("Navigation")
+pages = {"Accueil": "main.py"}
+if role == "Admin":
+    pages["Admin"] = "pages/admin.py"
+elif role == "Analyste":
+    pages["Analyste"] = "pages/analyst.py"
+elif role == "Utilisateur":
+    pages["Utilisateur"] = "pages/user.py"
+
+# Sélecteur de page (main toujours visible)
+page_names = list(pages.keys())
+selected = st.sidebar.selectbox("Aller à la page :", page_names, index=0)
+
+logout_button()
+
+# Redirection si une page autre que main est choisie
+if selected != "Accueil":
+    st.switch_page(pages[selected])
+
+st.title("Portail Data Extraction")
+st.info(f"Bienvenue, {st.session_state.get('username', '')} (rôle : {role})")
+
+st.write("""
+Ce portail vous permet d'accéder à l'interface correspondant à votre rôle. Utilisez la barre latérale pour naviguer.
+""")
 
 
