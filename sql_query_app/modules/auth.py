@@ -2,6 +2,9 @@ import streamlit as st
 import sqlite3
 import bcrypt
 import os
+import pickle
+
+SESSION_FILE = "session_state.pkl"
 
 def get_db_conn():
     DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'db', 'app.db')
@@ -36,6 +39,24 @@ def redirect_by_role():
         st.error("Rôle inconnu ou non authentifié.")
         st.stop()
 
+def save_session():
+    with open(SESSION_FILE, "wb") as f:
+        pickle.dump({
+            "authenticated": st.session_state.get("authenticated", False),
+            "username": st.session_state.get("username"),
+            "user_id": st.session_state.get("user_id"),
+            "role": st.session_state.get("role")
+        }, f)
+
+def load_session():
+    if os.path.exists(SESSION_FILE):
+        with open(SESSION_FILE, "rb") as f:
+            data = pickle.load(f)
+            st.session_state["authenticated"] = data.get("authenticated", False)
+            st.session_state["username"] = data.get("username")
+            st.session_state["user_id"] = data.get("user_id")
+            st.session_state["role"] = data.get("role")
+
 def login_form():
     st.markdown("""
         <style>
@@ -55,6 +76,7 @@ def login_form():
             st.session_state["username"] = user["username"]
             st.session_state["user_id"] = user["user_id"]
             st.session_state["role"] = user["role"]
+            save_session()
             redirect_by_role()
     if error:
         st.error(error)
@@ -67,5 +89,7 @@ def require_login():
 def logout_button():
     st.sidebar.markdown(f"**Connecté en tant que :** {st.session_state.get('username', '')}")
     if st.sidebar.button("🔓 Se déconnecter"):
+        if os.path.exists(SESSION_FILE):
+            os.remove(SESSION_FILE)
         st.session_state.clear()
         st.rerun()
