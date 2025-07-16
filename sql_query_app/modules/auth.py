@@ -3,6 +3,7 @@ import sqlite3
 import bcrypt
 import os
 import pickle
+import time
 
 SESSION_FILE = "session_state.pkl"
 
@@ -91,6 +92,7 @@ def logout_button():
     if st.sidebar.button("🔓 Se déconnecter"):
         if os.path.exists(SESSION_FILE):
             os.remove(SESSION_FILE)
+        st.success("✅ Déconnexion réussie")
+        time.sleep(1)
         st.session_state.clear()
-        st.success("Déconnexion réussie.")
         st.rerun()
