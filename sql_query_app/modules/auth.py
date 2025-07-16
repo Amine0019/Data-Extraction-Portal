@@ -92,4 +92,5 @@ def logout_button():
         if os.path.exists(SESSION_FILE):
             os.remove(SESSION_FILE)
         st.session_state.clear()
+        st.success("Déconnexion réussie.")
         st.rerun()
