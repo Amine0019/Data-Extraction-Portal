@@ -4,8 +4,13 @@ import bcrypt
 import os
 import pickle
 import time
+import datetime
 
 SESSION_FILE = "session_state.pkl"
+
+TIMEOUT_MINUTES = 5  # Durée d'inactivité avant déconnexion automatique
+
+SESSION_EXPIRED_FLAG = "session_expired_flag.pkl"
 
 def get_db_conn():
     DB_PATH = os.path.join(os.path.dirname(__file__), '..', 'db', 'app.db')
@@ -82,16 +87,51 @@ def login_form():
     if error:
         st.error(error)
 
+# --- Gestion du timeout d'inactivité ---
+def check_session_timeout():
+    now = datetime.datetime.now()
+    last = st.session_state.get("last_interaction_time")
+    if last:
+        try:
+            last_dt = datetime.datetime.fromisoformat(last)
+        except Exception:
+            last_dt = now
+        elapsed = (now - last_dt).total_seconds() / 60
+        if elapsed > TIMEOUT_MINUTES:
+            # Déconnexion automatique
+            if os.path.exists(SESSION_FILE):
+                os.remove(SESSION_FILE)
+            st.session_state.clear()
+            # On pose un flag pour afficher le message sur la page de login
+            with open(SESSION_EXPIRED_FLAG, "w") as f:
+                f.write("expired")
+            st.rerun()
+    # Mise à jour de l'horodatage à chaque interaction
+    st.session_state["last_interaction_time"] = now.isoformat()
+
+# Affiche le message d'expiration uniquement si le flag existe (timeout réel)
+def show_expired_message():
+    if os.path.exists(SESSION_EXPIRED_FLAG):
+        st.warning("Votre session a expiré pour cause d'inactivité.")
+        os.remove(SESSION_EXPIRED_FLAG)
+
+# --- Authentification et login sécurisé ---
 def require_login():
+    check_session_timeout()
     if not st.session_state.get("authenticated"):
+        show_expired_message()
         login_form()
         st.stop()
 
+# --- Déconnexion manuelle sécurisée ---
 def logout_button():
     st.sidebar.markdown(f"**Connecté en tant que :** {st.session_state.get('username', '')}")
     if st.sidebar.button("🔓 Se déconnecter"):
         if os.path.exists(SESSION_FILE):
             os.remove(SESSION_FILE)
+        # On supprime aussi le flag d'expiration pour ne pas afficher le message à tort
+        if os.path.exists(SESSION_EXPIRED_FLAG):
+            os.remove(SESSION_EXPIRED_FLAG)
         st.success("✅ Déconnexion réussie")
         time.sleep(1)
         st.session_state.clear()
