@@ -8,7 +8,7 @@ import datetime
 
 SESSION_FILE = "session_state.pkl"
 
-TIMEOUT_MINUTES = 5  # Durée d'inactivité avant déconnexion automatique
+TIMEOUT_MINUTES = 10  # Durée d'inactivité avant déconnexion automatique
 
 SESSION_EXPIRED_FLAG = "session_expired_flag.pkl"
 
