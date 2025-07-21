@@ -35,5 +35,3 @@ st.info(f"Bienvenue, {st.session_state.get('username', '')} (rôle : {role})")
 st.write("""
 Ce portail vous permet d'accéder à l'interface correspondant à votre rôle. Utilisez la barre latérale pour naviguer.
 """)
-
-

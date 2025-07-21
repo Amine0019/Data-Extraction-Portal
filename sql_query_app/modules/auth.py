@@ -7,9 +7,7 @@ import time
 import datetime
 
 SESSION_FILE = "session_state.pkl"
-
 TIMEOUT_MINUTES = 10  # Durée d'inactivité avant déconnexion automatique
-
 SESSION_EXPIRED_FLAG = "session_expired_flag.pkl"
 
 def get_db_conn():
@@ -51,7 +49,8 @@ def save_session():
             "authenticated": st.session_state.get("authenticated", False),
             "username": st.session_state.get("username"),
             "user_id": st.session_state.get("user_id"),
-            "role": st.session_state.get("role")
+            "role": st.session_state.get("role"),
+            "last_interaction_time": st.session_state.get("last_interaction_time")
         }, f)
 
 def load_session():
@@ -62,6 +61,7 @@ def load_session():
             st.session_state["username"] = data.get("username")
             st.session_state["user_id"] = data.get("user_id")
             st.session_state["role"] = data.get("role")
+            st.session_state["last_interaction_time"] = data.get("last_interaction_time")
 
 def login_form():
     st.markdown("""
@@ -83,7 +83,8 @@ def login_form():
             st.session_state["username"] = user["username"]
             st.session_state["user_id"] = user["user_id"]
             st.session_state["role"] = user["role"]
-            save_session()
+            st.session_state["last_interaction_time"] = datetime.datetime.now().isoformat()
+            save_session()  # Sauvegarde immédiate
             redirect_by_role()
     if error:
         st.error(error)
@@ -105,12 +106,12 @@ def check_session_timeout():
             if os.path.exists(SESSION_FILE):
                 os.remove(SESSION_FILE)
             st.session_state.clear()
-            # On pose un flag pour afficher le message sur la page de login
             with open(SESSION_EXPIRED_FLAG, "w") as f:
                 f.write("expired")
             st.rerun()
     # Mise à jour de l'horodatage à chaque interaction
     st.session_state["last_interaction_time"] = now.isoformat()
+    save_session()  # Sauvegarde à chaque interaction
 
 # Affiche le message d'expiration uniquement si le flag existe (timeout réel)
 def show_expired_message():
@@ -120,7 +121,13 @@ def show_expired_message():
 
 # --- Authentification et login sécurisé ---
 def require_login():
-    check_session_timeout()
+    # Charger la session si elle existe (au tout début)
+    if "authenticated" not in st.session_state:
+        load_session()
+    # Vérifier le timeout uniquement si authentifié
+    if st.session_state.get("authenticated"):
+        check_session_timeout()
+    # Si non authentifié, afficher login
     if not st.session_state.get("authenticated"):
         show_expired_message()
         login_form()
