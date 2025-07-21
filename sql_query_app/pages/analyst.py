@@ -1,7 +1,6 @@
 import streamlit as st
 from modules import auth
 
-auth.load_session()
 auth.require_login()
 if st.session_state.get("role") != "Analyste":
     st.error("Accès non autorisé")

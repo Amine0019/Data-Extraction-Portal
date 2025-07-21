@@ -1,7 +1,6 @@
 import streamlit as st
 from modules import user_manager, auth
 
-auth.load_session()
 auth.require_login()
 if st.session_state.get("role") != "Admin":
     st.error("Accès non autorisé")

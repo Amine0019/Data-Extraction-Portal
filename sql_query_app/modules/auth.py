@@ -78,6 +78,7 @@ def login_form():
     if submitted:
         user, error = authenticate(username, password)
         if user:
+            st.session_state.clear()  # Nettoyage avant nouvelle session
             st.session_state["authenticated"] = True
             st.session_state["username"] = user["username"]
             st.session_state["user_id"] = user["user_id"]
@@ -89,6 +90,8 @@ def login_form():
 
 # --- Gestion du timeout d'inactivité ---
 def check_session_timeout():
+    if not st.session_state.get("authenticated"):
+        return  # Pas de timeout si non connecté
     now = datetime.datetime.now()
     last = st.session_state.get("last_interaction_time")
     if last:
@@ -129,10 +132,9 @@ def logout_button():
     if st.sidebar.button("🔓 Se déconnecter"):
         if os.path.exists(SESSION_FILE):
             os.remove(SESSION_FILE)
-        # On supprime aussi le flag d'expiration pour ne pas afficher le message à tort
         if os.path.exists(SESSION_EXPIRED_FLAG):
             os.remove(SESSION_EXPIRED_FLAG)
+        st.session_state.clear()
         st.success("✅ Déconnexion réussie")
         time.sleep(1)
-        st.session_state.clear()
         st.rerun()

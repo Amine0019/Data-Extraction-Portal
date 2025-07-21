@@ -1,7 +1,5 @@
 import streamlit as st
-from modules.auth import require_login, logout_button, load_session
-
-load_session()
+from modules.auth import require_login, logout_button
 
 st.set_page_config(initial_sidebar_state="expanded", page_title="Accueil")
 
