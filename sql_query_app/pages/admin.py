@@ -35,10 +35,10 @@ with tab2:
     if submitted:
         ok, msg = user_manager.add_user(username, password, role, is_active)
         if ok:
-            st.success(msg)
+            st.success(msg if msg else "Opération réussie.")
             st.rerun()
         else:
-            st.error(msg)
+            st.error(msg if msg else "Erreur inconnue.")
 
 # --- MODIFIER ---
 with tab3:
@@ -55,16 +55,16 @@ with tab3:
             actif_label = st.selectbox("Actif ?", ["is_active", "not_active"], index=0 if user[3] == 1 else 1)
             new_is_active = 1 if actif_label == "is_active" else 0
             update_btn = st.form_submit_button("Enregistrer les modifications")
-        if update_btn:
-            fields = {"username": new_username, "role": new_role, "is_active": new_is_active}
-            if new_password:
-                fields["password"] = new_password
-            ok, msg = user_manager.update_user(user[0], fields)
-            if ok:
-                st.success(msg)
-                st.rerun()
-            else:
-                st.error(msg)
+            if update_btn:
+                fields = {"username": new_username, "role": new_role, "is_active": new_is_active}
+                if new_password:
+                    fields["password"] = new_password
+                ok, msg = user_manager.update_user(user[0], fields)
+                if ok:
+                    st.success(msg if msg else "Opération réussie.")
+                    st.rerun()
+                else:
+                    st.error(msg if msg else "Erreur inconnue.")
     else:
         st.info("Aucun utilisateur à afficher.")
 
