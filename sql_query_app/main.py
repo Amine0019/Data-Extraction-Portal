@@ -21,7 +21,8 @@ elif role == "Utilisateur":
 
 # Sélecteur de page (main toujours visible)
 page_names = list(pages.keys())
-selected = st.sidebar.selectbox("Aller à la page :", page_names, index=0)
+selected = st.sidebar.selectbox("Aller à la page :", page_names, index=page_names.index("Accueil"))
+
 
 logout_button()
 
