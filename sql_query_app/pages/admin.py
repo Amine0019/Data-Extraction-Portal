@@ -35,15 +35,18 @@ if st.session_state.user_mode in ("add", "edit"):
             st.session_state.user_mode = None
             st.stop()
         default_username = user[1]
+        default_email = user[4]  # Récupération de l'email
         default_role = user[2]
         default_active = user[3]
     else:
         default_username = ""
+        default_email = ""
         default_role = "Utilisateur"
         default_active = 1
 
     with st.form("user_form", clear_on_submit=False):
         username = st.text_input("Nom d'utilisateur", value=default_username)
+        email = st.text_input("Adresse email", value=default_email)  # Champ email ajouté
         password = st.text_input("Mot de passe", type="password", placeholder="(laisser vide si inchangé)")
         role = st.selectbox("Rôle", ["Admin", "Analyste", "Utilisateur"],
                             index=["Admin", "Analyste", "Utilisateur"].index(default_role))
@@ -60,6 +63,7 @@ if st.session_state.user_mode in ("add", "edit"):
         if submitted:
             fields = {
                 "username": username,
+                "email": email,  # Email ajouté aux champs
                 "role": role,
                 "is_active": 1 if actif == "Actif" else 0
             }
@@ -69,7 +73,19 @@ if st.session_state.user_mode in ("add", "edit"):
             if is_edit:
                 ok, msg = user_manager.update_user(user_id, fields)
             else:
-                ok, msg = user_manager.add_user(**fields)
+                # Vérification du mot de passe en mode ajout
+                if not password:
+                    st.error("Le mot de passe est requis pour créer un nouvel utilisateur.")
+                    st.stop()
+                
+                # Appel correct avec tous les paramètres requis
+                ok, msg = user_manager.add_user(
+                    username=fields["username"],
+                    password=fields["password"],
+                    role=fields["role"],
+                    is_active=fields["is_active"],
+                    email=fields["email"]
+                )
 
             if ok:
                 st.success(msg)
@@ -88,23 +104,26 @@ if st.session_state.user_mode is None:
 # --- LISTE DES UTILISATEURS ---
 if st.session_state.user_mode is None:
     users = user_manager.get_all_users()
-    df = pd.DataFrame(users, columns=["ID", "Nom d'utilisateur", "Rôle", "Actif"])
+    # Ajout de la colonne Email
+    df = pd.DataFrame(users, columns=["ID", "Nom d'utilisateur", "Rôle", "Actif", "Email"])
     df["Actif"] = df["Actif"].map({1: "✅", 0: "❌"})
 
     st.subheader("📋 Liste des utilisateurs")
+    # Ajout d'une colonne pour l'affichage de l'email
     for _, row in df.iterrows():
-        col1, col2, col3, col4, col5 = st.columns([3, 2, 1, 1, 1])
+        col1, col2, col3, col4, col5, col6 = st.columns([3, 2, 1, 2, 1, 1])
 
         col1.write(row["Nom d'utilisateur"])
         col2.write(row["Rôle"])
         col3.write(row["Actif"])
+        col4.write(row["Email"])  # Affichage de l'email
 
-        if col4.button("✏️", key=f"edit_{row['ID']}"):
+        if col5.button("✏️", key=f"edit_{row['ID']}"):
             st.session_state.user_mode = "edit"
             st.session_state.edit_user_id = row["ID"]
             st.rerun()
 
-        if col5.button("🗑", key=f"delete_{row['ID']}"):
+        if col6.button("🗑", key=f"delete_{row['ID']}"):
             if row["ID"] == st.session_state["user_id"]:
                 st.warning("Impossible de supprimer votre propre compte.")
             else:
