@@ -3,4 +3,4 @@ pyodbc
 pandas
 openpyxl
 bcrypt
-
+python-dotenv

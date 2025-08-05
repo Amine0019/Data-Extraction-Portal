@@ -20,16 +20,24 @@ def authenticate(username, password):
     cur.execute("SELECT id, username, password, role, is_active FROM users WHERE username = ?", (username,))
     user = cur.fetchone()
     conn.close()
+
     if user:
         user_id, username_db, password_hash, role, is_active = user
+
         if not is_active:
             return None, "Compte inactif. Contactez l'administrateur."
-        if bcrypt.checkpw(password.encode(), password_hash):
+
+        # S'assurer que le hash est bien en bytes
+        if isinstance(password_hash, str):
+            password_hash = password_hash.encode('utf-8')
+
+        if bcrypt.checkpw(password.encode('utf-8'), password_hash):
             return {"user_id": user_id, "username": username_db, "role": role}, None
         else:
             return None, "Mot de passe incorrect."
     else:
         return None, "Nom d'utilisateur inconnu."
+
 
 def redirect_by_role():
     role = st.session_state.get("role")
@@ -69,25 +77,38 @@ def login_form():
         [data-testid="stSidebar"] {display: none !important;}
         </style>
     """, unsafe_allow_html=True)
+
     st.title("Bienvenue – Identifiez‑vous")
+
     with st.form("login_form"):
         username = st.text_input("Nom d'utilisateur")
         password = st.text_input("Mot de passe", type="password")
-        submitted = st.form_submit_button("Se connecter")
+
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            submitted = st.form_submit_button("Se connecter")
+        with col2:
+            forgot_clicked = st.form_submit_button("🔑 Mot de passe oublié ?")
+
     error = None
     if submitted:
         user, error = authenticate(username, password)
         if user:
-            st.session_state.clear()  # Nettoyage avant nouvelle session
+            st.session_state.clear()
             st.session_state["authenticated"] = True
             st.session_state["username"] = user["username"]
             st.session_state["user_id"] = user["user_id"]
             st.session_state["role"] = user["role"]
             st.session_state["last_interaction_time"] = datetime.datetime.now().isoformat()
-            save_session()  # Sauvegarde immédiate
+            save_session()
             redirect_by_role()
+    elif forgot_clicked:
+        # CORRECTION ICI ▼▼▼
+        st.switch_page("pages/forgot_password_step1.py")  # Chemin corrigé
+
     if error:
         st.error(error)
+
 
 # --- Gestion du timeout d'inactivité ---
 def check_session_timeout():

@@ -100,7 +100,8 @@ def add_user(username, password, role, is_active, email):
         return False, "Cette adresse email est déjà utilisée."
 
     # Hacher le mot de passe
-    hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
+    salt = bcrypt.gensalt()
+    hashed_password = bcrypt.hashpw(password.encode(), salt)  # Garder en bytes
     
     try:
         conn = get_db_conn()
@@ -108,7 +109,7 @@ def add_user(username, password, role, is_active, email):
         cur.execute("""
             INSERT INTO users (username, password, role, is_active, email)
             VALUES (?, ?, ?, ?, ?)
-        """, (username, hashed, role, is_active, email))
+        """, (username, hashed_password, role, is_active, email))
         conn.commit()
         conn.close()
         return True, "Utilisateur ajouté avec succès."
@@ -155,10 +156,16 @@ def update_user(user_id, fields_to_update):
         ok, msg = validate_password(fields_to_update["password"])
         if not ok:
             return False, msg
-        fields_to_update["password"] = bcrypt.hashpw(
-            fields_to_update["password"].encode(), 
-            bcrypt.gensalt()
-        )
+    
+        
+        if isinstance(fields_to_update["password"], str):
+            salt = bcrypt.gensalt()
+            fields_to_update["password"] = bcrypt.hashpw(
+                fields_to_update["password"].encode("utf-8"),
+            salt
+    )
+    
+
 
     # Validation role si modifié
     if "role" in fields_to_update:
