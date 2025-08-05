@@ -2,6 +2,14 @@ import streamlit as st
 from modules import user_manager
 import time
 import bcrypt
+from modules.auth import redirect_by_role  # Import nécessaire pour la redirection
+
+# --- VÉRIFICATION DE CONNEXION ---
+if "authenticated" in st.session_state and st.session_state.authenticated:
+    st.warning("Vous êtes déjà connecté. Vous ne pouvez pas accéder à cette page.")
+    time.sleep(2)
+    redirect_by_role()  # Redirection vers la page appropriée
+    st.stop()  # Arrêter l'exécution du reste de la page
 
 st.set_page_config(page_title="🔐 Mot de passe oublié - Étape 2")
 st.title("🔐 Réinitialiser mon mot de passe - Étape 2")

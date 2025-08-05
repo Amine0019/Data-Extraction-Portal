@@ -8,6 +8,14 @@ from modules import user_manager
 from utils.mail_utils import send_verification_email
 import random
 import time
+from modules.auth import redirect_by_role  # Ajout de l'import pour la redirection
+
+# --- VÉRIFICATION DE CONNEXION ---
+if "authenticated" in st.session_state and st.session_state.authenticated:
+    st.warning("Vous êtes déjà connecté. Vous ne pouvez pas accéder à cette page.")
+    time.sleep(2)
+    redirect_by_role()  # Redirection vers la page appropriée
+    st.stop()  # Arrêter l'exécution du reste de la page
 
 
 
