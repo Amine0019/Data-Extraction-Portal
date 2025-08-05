@@ -33,6 +33,6 @@ if st.button("Envoyer le code de vérification"):
         ok, msg = send_verification_email(email, code)
         if ok:
             st.success("Un code de vérification a été envoyé à votre adresse email.")
-            st.switch_page("forgot_password/forgot_password_step2.py")
+            st.switch_page("pages/forgot_password_step2.py")
         else:
             st.error(f"Erreur lors de l'envoi de l'e-mail : {msg}")
