@@ -4,6 +4,12 @@ import os
 import re
 import streamlit as st
 from cryptography.fernet import Fernet, InvalidToken
+from dotenv import load_dotenv  # Ajout important
+
+
+# --- CHARGEMENT DES VARIABLES D'ENVIRONNEMENT ---
+load_dotenv()  # Charger les variables du fichier .env
+
 
 # --- CONFIGURATION ---
 DB_PATH = os.path.join("db", "app.db")
@@ -221,7 +227,7 @@ def test_connection(conn_id: int):
 def test_sql_server_connection(conn_info):
     """Teste la connexion à SQL Server"""
     try:
-        if conn_info["username"] == "" and conn_info["password"] == "":
+        if conn_info["user"] == "" and conn_info["password"] == "":
             # Authentification Windows
             conn_str = (
                 f"DRIVER={{ODBC Driver 17 for SQL Server}};"
@@ -235,7 +241,7 @@ def test_sql_server_connection(conn_info):
                 f"DRIVER={{ODBC Driver 17 for SQL Server}};"
                 f"SERVER={conn_info['host']},{conn_info['port']};"
                 f"DATABASE={conn_info['db_service']};"
-                f"UID={conn_info['username']};"
+                f"UID={conn_info['user']};"
                 f"PWD={conn_info['password']};"
             )
         conn = pyodbc.connect(conn_str)
@@ -248,7 +254,7 @@ class DatabaseConnection:
     def __init__(self, conn_info):
         try:
             if conn_info["type"].lower() == "sqlserver":
-                if conn_info["username"] == "" and conn_info["password"] == "":
+                if conn_info["user"] == "" and conn_info["password"] == "":
                     # Authentification Windows
                     conn_str = (
                         f"DRIVER={{ODBC Driver 17 for SQL Server}};"
@@ -262,7 +268,7 @@ class DatabaseConnection:
                         f"DRIVER={{ODBC Driver 17 for SQL Server}};"
                         f"SERVER={conn_info['host']},{conn_info['port']};"
                         f"DATABASE={conn_info['db_service']};"
-                        f"UID={conn_info['username']};"
+                        f"UID={conn_info['user']};"
                         f"PWD={conn_info['password']};"
                     )
             else:
@@ -284,14 +290,14 @@ class DatabaseConnection:
 if __name__ == "__main__":
     # Exemple d'ajout de connexion
     new_conn = {
-        "name": "SQL Server Test",
-        "type": "sqlserver",
-        "host": "serveur.example.com",
-        "port": 1433,
-        "db_service": "master",
-        "username": "admin",
-        "password": "motdepasse"
-    }
+    "name": "SQL Server Test",
+    "type": "sqlserver",
+    "host": "localhost",  # Utilisez localhost
+    "port": 1433,
+    "db_service": "master",
+    "user": "sa",  # Votre utilisateur SQL
+    "password": "votre_mot_de_passe_sa"  # Votre mot de passe
+}
     
     # Ajouter la connexion
     success, message = add_connection(new_conn)
