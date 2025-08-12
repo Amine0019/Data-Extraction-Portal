@@ -61,7 +61,7 @@ def decrypt_password(encrypted_password: str) -> str:
 
 # --- CRUD DB_CONNECTIONS ---
 def get_connection_info(conn_id: int):
-    """Récupère les infos de connexion avec mot de passe déchiffré"""
+    """Récupère les infos de connexion avec mot de passe déchiffré et port en int"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
@@ -73,24 +73,29 @@ def get_connection_info(conn_id: int):
     
     if row:
         try:
-            # Gestion d'erreur pour déchiffrement
             password = decrypt_password(row[7])
         except InvalidToken:
-            # Si déchiffrement échoue, retourner un mot de passe vide
             password = ""
             st.error("❌ Erreur de déchiffrement - Clé Fernet invalide ou données corrompues")
+        
+        # Conversion du port en int avec fallback sur 1433
+        try:
+            port_value = int(row[4]) if row[4] is not None else 1433
+        except (ValueError, TypeError):
+            port_value = 1433
         
         return {
             "id": row[0],
             "name": row[1],
             "type": row[2],
             "host": row[3],
-            "port": row[4],
+            "port": port_value,
             "db_service": row[5],
             "user": row[6],
-            "password": password  # Utiliser la valeur déchiffrée ou chaîne vide
+            "password": password
         }
     return None
+
 
 def add_connection(data: dict):
     """Ajoute une nouvelle connexion avec validation et chiffrement"""
@@ -201,7 +206,7 @@ def delete_connection(conn_id: int):
         conn.close()
 
 def get_all_connections():
-    """Récupère toutes les connexions (sans les mots de passe)"""
+    """Récupère toutes les connexions (sans les mots de passe) et convertit port en int"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
@@ -211,7 +216,26 @@ def get_all_connections():
     """)
     rows = cursor.fetchall()
     conn.close()
-    return rows
+
+    # Conversion du port en int pour chaque ligne
+    corrected_rows = []
+    for row in rows:
+        try:
+            port_value = int(row[4]) if row[4] is not None else 1433
+        except (ValueError, TypeError):
+            port_value = 1433
+        
+        corrected_rows.append((
+            row[0],  # id
+            row[1],  # name
+            row[2],  # type
+            row[3],  # host
+            port_value,
+            row[5],  # db_service
+            row[6]   # user
+        ))
+
+    return corrected_rows
 
 def test_connection(conn_id: int):
     """Teste une connexion par son ID"""
@@ -225,7 +249,7 @@ def test_connection(conn_id: int):
     return test_sql_server_connection(conn_info)
 
 def test_sql_server_connection(conn_info):
-    """Teste la connexion à SQL Server"""
+    """Teste la connexion à SQL Server avec messages d'erreurs plus clairs."""
     try:
         if conn_info["user"] == "" and conn_info["password"] == "":
             # Authentification Windows
@@ -244,12 +268,23 @@ def test_sql_server_connection(conn_info):
                 f"UID={conn_info['user']};"
                 f"PWD={conn_info['password']};"
             )
-        conn = pyodbc.connect(conn_str)
-        conn.close()
-        return True, "Connexion réussie!"
-    except Exception as e:
-        return False, f"Erreur de connexion: {str(e)}"
 
+        conn = pyodbc.connect(conn_str, timeout=5)  # timeout pour éviter attente infinie
+        conn.close()
+        return True, "✅ Connexion réussie !"
+
+    except pyodbc.InterfaceError as e:
+        return False, "❌ Impossible d'atteindre le serveur. Vérifiez l'adresse et le port."
+    except pyodbc.OperationalError as e:
+        msg = str(e)
+        if "Login failed" in msg or "Echec de la connexion" in msg:
+            return False, "❌ Nom d'utilisateur ou mot de passe incorrect."
+        elif "timeout" in msg.lower():
+            return False, "⏳ Temps d'attente dépassé. Vérifiez si le serveur est en ligne."
+        else:
+            return False, f"❌ Erreur opérationnelle : {msg}"
+    except Exception as e:
+        return False, f"❌ Erreur inconnue : {str(e)}"
 class DatabaseConnection:
     def __init__(self, conn_info):
         try:

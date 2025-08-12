@@ -40,7 +40,7 @@ if st.session_state.connection_mode in ("add", "edit"):
             st.stop()
         default_name = connection["name"]
         default_host = connection["host"]
-        default_port = int(connection["port"])  # Conversion en int
+        default_port = int(connection["port"] or 1433)
         default_db_service = connection["db_service"]
         default_user = connection["user"]
         default_password = connection["password"]
