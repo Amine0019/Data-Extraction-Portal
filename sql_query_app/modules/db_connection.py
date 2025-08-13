@@ -4,15 +4,19 @@ import os
 import re
 import streamlit as st
 from cryptography.fernet import Fernet, InvalidToken
-from dotenv import load_dotenv  # Ajout important
-
+from dotenv import load_dotenv
+from pathlib import Path
 
 # --- CHARGEMENT DES VARIABLES D'ENVIRONNEMENT ---
 load_dotenv()  # Charger les variables du fichier .env
 
-
 # --- CONFIGURATION ---
-DB_PATH = os.path.join("db", "app.db")
+# Chemin absolu vers le dossier db (sql_query_app/db)
+BASE_DIR = Path(__file__).resolve().parent.parent
+DB_DIR = BASE_DIR / "db"
+DB_DIR.mkdir(parents=True, exist_ok=True)  # Crée le dossier si nécessaire
+DB_PATH = str(DB_DIR / "app.db")
+
 FERNET_KEY = os.getenv("FERNET_KEY")  # Clé dans .env
 
 if not FERNET_KEY:
@@ -285,6 +289,7 @@ def test_sql_server_connection(conn_info):
             return False, f"❌ Erreur opérationnelle : {msg}"
     except Exception as e:
         return False, f"❌ Erreur inconnue : {str(e)}"
+        
 class DatabaseConnection:
     def __init__(self, conn_info):
         try:
@@ -321,18 +326,63 @@ class DatabaseConnection:
         if self._connection:
             self._connection.close()
 
+# --- INITIALISATION DE LA BASE ---
+def init_db():
+    """Initialise la base de données si elle n'existe pas"""
+    if not os.path.exists(DB_PATH):
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS db_connections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE NOT NULL,
+                type TEXT NOT NULL,
+                host TEXT NOT NULL,
+                port INTEGER NOT NULL,
+                db_service TEXT NOT NULL,
+                user TEXT NOT NULL,
+                password TEXT NOT NULL
+            )
+        """)
+        conn.commit()
+        conn.close()
+        print(f"Base de données initialisée: {DB_PATH}")
+
+# --- FONCTION UTILITAIRE POUR LES TESTS ---
+def cleanup_test_connections(base_name: str):
+    """Nettoie les connexions de test existantes"""
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(
+            "DELETE FROM db_connections WHERE name LIKE ? || '%'", 
+            (base_name,)
+        )
+        deleted_count = cursor.rowcount
+        conn.commit()
+    print(f"{deleted_count} anciennes connexions nettoyées")
+
 # --- TEST ---
 if __name__ == "__main__":
+    # Initialiser la base de données
+    init_db()
+    
+    print(f"Chemin DB: {DB_PATH}")
+    print(f"DB existe: {os.path.exists(DB_PATH)}")
+    
+    # Nettoyer les anciennes connexions de test
+    BASE_TEST_NAME = "SQL Server Test"
+    cleanup_test_connections(BASE_TEST_NAME)
+    
     # Exemple d'ajout de connexion
     new_conn = {
-    "name": "SQL Server Test",
-    "type": "sqlserver",
-    "host": "localhost",  # Utilisez localhost
-    "port": 1433,
-    "db_service": "master",
-    "user": "sa",  # Votre utilisateur SQL
-    "password": "votre_mot_de_passe_sa"  # Votre mot de passe
-}
+        "name": BASE_TEST_NAME,
+        "type": "sqlserver",
+        "host": "localhost",
+        "port": 1433,
+        "db_service": "master",
+        "user": "sa",
+        "password": "votre_mot_de_passe_sa"  # REMPLACEZ PAR VOTRE VRAI MOT DE PASSE
+    }
     
     # Ajouter la connexion
     success, message = add_connection(new_conn)
@@ -340,12 +390,16 @@ if __name__ == "__main__":
     
     # Tester la connexion
     if success:
-        # Récupérer l'ID de la dernière connexion ajoutée
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("SELECT MAX(id) FROM db_connections")
-        conn_id = cursor.fetchone()[0]
-        conn.close()
+        # Récupérer l'ID de la connexion par son nom
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM db_connections WHERE name = ?", (BASE_TEST_NAME,))
+            result = cursor.fetchone()
+            if result:
+                conn_id = result[0]
+            else:
+                print("❌ La connexion n'a pas été trouvée après l'ajout")
+                exit(1)
         
         # Tester la connexion
         success, message = test_connection(conn_id)
@@ -353,14 +407,42 @@ if __name__ == "__main__":
         
         # Utiliser la connexion
         try:
-            db = DatabaseConnection(get_connection_info(conn_id))
-            conn = db.get_connection()
-            if conn:
-                print("✅ Connexion établie avec succès!")
-                cursor = conn.cursor()
-                cursor.execute("SELECT TOP 1 name FROM sys.databases")
-                row = cursor.fetchone()
-                print(f"Première base: {row[0]}")
-                db.close()
+            conn_info = get_connection_info(conn_id)
+            if conn_info:
+                print("\nConfiguration de connexion utilisée:")
+                print(f"Type: {conn_info['type']}")
+                print(f"Host: {conn_info['host']}")
+                print(f"Port: {conn_info['port']}")
+                print(f"DB: {conn_info['db_service']}")
+                print(f"User: {conn_info['user']}")
+                
+                db = DatabaseConnection(conn_info)
+                conn_db = db.get_connection()
+                if conn_db:
+                    print("\n✅ Connexion établie avec succès!")
+                    
+                    # Tester la requête
+                    cursor = conn_db.cursor()
+                    cursor.execute("SELECT TOP 1 name FROM sys.databases")
+                    row = cursor.fetchone()
+                    
+                    if row:
+                        print(f"Première base: {row[0]}")
+                    else:
+                        print("Aucun résultat retourné")
+                    
+                    # Nettoyage
+                    cursor.close()
+                    db.close()
+                    print("Connexion fermée proprement")
+                else:
+                    print("❌ Échec de la connexion via DatabaseConnection")
+            else:
+                print("❌ Informations de connexion non trouvées")
+        except pyodbc.Error as e:
+            print(f"\n❌ Erreur pyodbc: {str(e)}")
+            print("Code d'état SQL:", e.args[0] if e.args else "Inconnu")
         except Exception as e:
-            print(f"❌ Erreur: {str(e)}")
+            print(f"\n❌ Erreur générale: {str(e)}")
+    else:
+        print("❌ Échec de l'ajout de la connexion, impossible de tester")
