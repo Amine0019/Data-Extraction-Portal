@@ -112,6 +112,46 @@ def validate_sql(sql_text: str) -> bool:
         
     return True
 
+
+# ==========================
+# VALIDATION DES PARAMÈTRES
+# ==========================
+def validate_parameters(parameters: str) -> bool:
+    """
+    Valide le format de la chaîne des paramètres.
+    Format attendu : "nom1:type1,nom2:type2"
+    Types autorisés : string, int, float, bool, date
+    
+    Retourne True si valide, False sinon.
+    """
+    if not parameters.strip():
+        return True  # Aucun paramètre est acceptable
+    
+    valid_types = {"string", "int", "float", "bool", "date"}
+    parts = [p.strip() for p in parameters.split(',') if p.strip()]
+    
+    for part in parts:
+        if ':' not in part:
+            return False
+        
+        # Séparation en nom et type
+        split_part = part.split(':', 1)
+        if len(split_part) != 2:
+            return False
+            
+        name, ptype = split_part
+        name = name.strip()
+        ptype = ptype.strip().lower()
+        
+        if not name or not ptype or ptype not in valid_types:
+            return False
+    
+    return True
+
+
+# ==========================
+# CREATE
+# ==========================
 # ==========================
 # CREATE
 # ==========================
@@ -125,6 +165,10 @@ def add_query(name: str, sql_text: str, parameters: str, roles: str, db_id: int)
         raise ValueError("Le SQL est obligatoire.")
     if not validate_sql(sql_text):
         raise ValueError("Requête SQL interdite ou non sécurisée.")
+    if not validate_parameters(parameters):
+        raise ValueError("Format des paramètres invalide. Utilisez: 'nom:type,nom2:type2' avec types: string, int, float, bool, date.")
+    if not roles.strip():
+        raise ValueError("Les rôles autorisés sont obligatoires.")
 
     with get_connection() as conn:
         cursor = conn.cursor()
@@ -197,6 +241,10 @@ def update_query(query_id: int, name: str, sql_text: str, parameters: str, roles
         raise ValueError("Le SQL est obligatoire.")
     if not validate_sql(sql_text):
         raise ValueError("Requête SQL interdite ou non sécurisée.")
+    if not validate_parameters(parameters):
+        raise ValueError("Format des paramètres invalide. Utilisez: 'nom:type,nom2:type2' avec types: string, int, float, bool, date.")
+    if not roles.strip():
+        raise ValueError("Les rôles autorisés sont obligatoires.")
 
     with get_connection() as conn:
         cursor = conn.cursor()
@@ -228,27 +276,62 @@ if __name__ == "__main__":
     print(f"Chemin DB: {DB_PATH}")
     print(f"DB existe: {os.path.exists(DB_PATH)}")
     
+    # Test de validation des paramètres
+    print("\n=== Tests de validation des paramètres ===")
+    test_params = [
+        ("Valide simple", "age:int"),
+        ("Valide multiple", "name:string,age:int"),
+        ("Valide types complexes", "start_date:date,is_active:bool"),
+        ("Invalide - séparateur incorrect", "start_date:date;end_date"),
+        ("Invalide - type manquant", "username"),
+        ("Invalide - nom manquant", ":int"),
+        ("Invalide - type inconnu", "price:currency"),
+    ]
+    
+    for desc, params in test_params:
+        print(f"\nTest: {desc}")
+        print(f"Paramètres: '{params}'")
+        print(f"Résultat validation: {validate_parameters(params)}")
+    
     # Test de création de requête
     try:
+        print("\n=== Test d'ajout avec paramètres invalides ===")
         add_query(
-            name="Test Query",
-            sql_text="SELECT * FROM sys.tables",
-            parameters="",
+            name="Test Paramètres",
+            sql_text="SELECT * FROM test",
+            parameters="start_date:date;end_date",  # Format invalide
             roles="admin",
             db_id=1
         )
-        print("✅ Test d'ajout réussi")
+        print("❌ Test d'ajout devrait échouer mais a réussi")
+    except ValueError as e:
+        print(f"✅ Test d'ajout a échoué comme prévu: {str(e)}")
+    
+    # Test d'ajout valide
+    try:
+        print("\n=== Test d'ajout valide ===")
+        add_query(
+            name="Test Query Valide",
+            sql_text="SELECT * FROM sys.tables",
+            parameters="is_active:bool,user_id:int",
+            roles="admin",
+            db_id=1
+        )
+        print("✅ Test d'ajout valide réussi")
     except Exception as e:
-        print(f"❌ Erreur d'ajout: {str(e)}")
+        print(f"❌ Erreur d'ajout valide: {str(e)}")
     
     # Test de récupération
     queries = get_all_queries()
-    print(f"Nombre de requêtes: {len(queries)}")
+    print(f"\nNombre de requêtes: {len(queries)}")
     if queries:
-        print("Première requête:", queries[0]['name'])
+        last_query = queries[-1]
+        print("Dernière requête ajoutée:")
+        print(f"Nom: {last_query['name']}")
+        print(f"Paramètres: {last_query['parameters']}")
     
     # Test de validation SQL
     valid_sql = "SELECT * FROM users WHERE id = 1"
     invalid_sql = "DROP TABLE users;"
-    print(f"Validation SQL '{valid_sql}': {validate_sql(valid_sql)}")
+    print(f"\nValidation SQL '{valid_sql}': {validate_sql(valid_sql)}")
     print(f"Validation SQL '{invalid_sql}': {validate_sql(invalid_sql)}")
