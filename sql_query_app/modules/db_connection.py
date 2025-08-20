@@ -99,7 +99,41 @@ def get_connection_info(conn_id: int):
             "password": password
         }
     return None
-
+def get_connection_by_id(connection_id: int):
+    """
+    Récupère les détails d'une connexion par son ID.
+    
+    Args:
+        connection_id: L'ID de la connexion à récupérer
+        
+    Returns:
+        Un dictionnaire contenant les détails de la connexion, ou None si non trouvé
+    """
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, name, type, host, port, db_service, user, password FROM db_connections WHERE id = ?",
+            (connection_id,)
+        )
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row:
+            return {
+                "id": row[0],
+                "name": row[1],
+                "type": row[2],
+                "host": row[3],
+                "port": row[4],
+                "db_service": row[5],
+                "user": row[6],
+                "password": row[7]  # Mot de passe chiffré
+            }
+        return None
+    except Exception as e:
+        print(f"Erreur lors de la récupération de la connexion: {str(e)}")
+        return None
 
 def add_connection(data: dict):
     """Ajoute une nouvelle connexion avec validation et chiffrement"""
