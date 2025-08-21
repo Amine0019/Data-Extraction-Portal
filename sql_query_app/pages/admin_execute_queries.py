@@ -1,5 +1,6 @@
 import streamlit as st
 from utils import query_executor
+from modules import db_connection
 import pandas as pd
 from datetime import datetime
 
@@ -17,18 +18,37 @@ st.set_page_config(page_title="Administration - Exécution des requêtes", layou
 st.title("⚙️ Exécution des requêtes - Administration")
 
 # ==============================
-# Chargement des requêtes
+# Chargement des connexions disponibles
 # ==============================
-queries = query_executor.get_queries_by_role("Admin")
+connections = db_connection.get_all_connections()
+
+if not connections:
+    st.info("Aucune connexion disponible dans le système.")
+    st.stop()
+
+# Créer un mapping nom -> ID pour les connexions
+connection_map = {conn[1]: conn[0] for conn in connections}  # name -> id
+
+# ==============================
+# Sélection de la base de données
+# ==============================
+st.header("1. Sélection de la base de données")
+selected_connection_name = st.selectbox("Choisissez une base de données :", list(connection_map.keys()))
+selected_db_id = connection_map[selected_connection_name]
+
+# ==============================
+# Chargement des requêtes pour la base sélectionnée
+# ==============================
+queries = query_executor.get_queries_by_db_and_role(selected_db_id, "Admin")
 
 if not queries:
-    st.info("Aucune requête disponible dans le système.")
+    st.info("Aucune requête disponible pour cette base de données.")
     st.stop()
 
 # ==============================
 # Sélection de la requête
 # ==============================
-st.header("1. Sélection de la requête")
+st.header("2. Sélection de la requête")
 query_names = {q["name"]: q for q in queries}
 selected_name = st.selectbox("Choisissez une requête à exécuter :", list(query_names.keys()))
 selected_query = query_names[selected_name]

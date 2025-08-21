@@ -1,5 +1,5 @@
 import streamlit as st
-from modules import auth
+from modules import auth, db_connection
 from utils import query_executor
 import pandas as pd
 from datetime import datetime
@@ -22,13 +22,32 @@ st.title("📊 Interface Analyste - Exécution des requêtes")
 st.success(f"Bienvenue, {st.session_state.get('username', '')} (rôle : {st.session_state.get('role', '')})")
 
 # ==============================
+# Chargement des connexions disponibles
+# ==============================
+connections = db_connection.get_all_connections()
+
+if not connections:
+    st.info("Aucune connexion disponible dans le système.")
+    st.stop()
+
+# Créer un mapping nom -> ID pour les connexions
+connection_map = {conn[1]: conn[0] for conn in connections}  # name -> id
+
+# ==============================
+# Sélection de la base de données
+# ==============================
+st.header("1. Sélection de la base de données")
+selected_connection_name = st.selectbox("Choisissez une base de données :", list(connection_map.keys()))
+selected_db_id = connection_map[selected_connection_name]
+
+# ==============================
 # Récupération des requêtes
 # ==============================
 with st.spinner("Chargement des requêtes disponibles..."):
-    queries = query_executor.get_queries_by_role("Analyste")
+    queries = query_executor.get_queries_by_db_and_role(selected_db_id, "Analyste")
 
 if not queries:
-    st.info("Aucune requête disponible pour votre rôle. Contactez un administrateur pour plus d'informations.")
+    st.info("Aucune requête disponible pour cette base de données. Contactez un administrateur pour plus d'informations.")
     st.stop()
 
 # Mapping nom → requête

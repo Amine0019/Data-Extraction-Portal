@@ -6,19 +6,23 @@ import re
 from typing import List, Dict, Any, Optional
 
 # ==============================
-# Charger les requêtes selon le rôle
+# Charger les requêtes selon le rôle et la base de données
 # ==============================
-def get_queries_by_role(role: str) -> List[Dict[str, Any]]:
+def get_queries_by_db_and_role(db_id: int, role: str) -> List[Dict[str, Any]]:
     """
-    Retourne la liste des requêtes accessibles à un rôle donné
+    Retourne la liste des requêtes accessibles pour une base de données et un rôle donné
     """
     all_queries = query_manager.get_all_queries()
-    if role == "Admin":
-        return all_queries
     
-    # Gestion des rôles avec différentes casesses
+    if role == "Admin":
+        # Pour les admins, toutes les requêtes de la base sélectionnée
+        return [q for q in all_queries if q["db_id"] == db_id]
+    
+    # Pour les autres rôles, filtrer par rôle ET base de données
     role_lower = role.lower()
-    return [q for q in all_queries if role_lower in [r.strip().lower() for r in q["roles"].split(",")]]
+    return [q for q in all_queries 
+            if q["db_id"] == db_id 
+            and role_lower in [r.strip().lower() for r in q["roles"].split(",")]]
 
 # ==============================
 # Préparer les champs dynamiques
