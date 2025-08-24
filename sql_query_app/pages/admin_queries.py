@@ -13,21 +13,49 @@ st.title("⚙️ Administration - Gestion des requêtes prédéfinies")
 
 # Initialisation de l'état de session
 if "query_mode" not in st.session_state:
-    st.session_state.query_mode = None  # None, "add", "edit"
+    st.session_state.query_mode = None
 if "edit_query_id" not in st.session_state:
     st.session_state.edit_query_id = None
+if "selected_db" not in st.session_state:
+    st.session_state.selected_db = "all"
 
 # ==========================
 # Chargement des données
 # ==========================
-def load_queries():
-    return query_manager.get_all_queries()
+def load_queries(db_filter="all"):
+    if db_filter == "all":
+        return query_manager.get_all_queries()
+    else:
+        return query_manager.get_queries_by_db_id(db_filter)
 
 def load_databases():
     return db_connection.get_all_connections()
 
-queries = load_queries()
+# Charger les bases de données
 db_list = load_databases()
+
+# Menu déroulant pour filtrer par base de données
+db_options = ["Toutes les bases"] + [db[1] for db in db_list]
+selected_db_name = st.selectbox(
+    "Filtrer par base de données",
+    db_options,
+    index=0 if st.session_state.selected_db == "all" else [db[0] for db in db_list].index(st.session_state.selected_db) + 1
+)
+
+# Convertir la sélection en ID de base
+if selected_db_name == "Toutes les bases":
+    st.session_state.selected_db = "all"
+else:
+    st.session_state.selected_db = next(db[0] for db in db_list if db[1] == selected_db_name)
+
+# Charger les requêtes en fonction du filtre
+queries = load_queries(st.session_state.selected_db)
+
+# --- BOUTON "AJOUTER UNE REQUÊTE" ---
+if st.session_state.query_mode is None:
+    if st.button("➕ Ajouter une requête"):
+        st.session_state.query_mode = "add"
+        st.rerun()
 
 # --- FORMULAIRE D'AJOUT / MODIFICATION ---
 if st.session_state.query_mode in ("add", "edit"):
@@ -120,22 +148,25 @@ if st.session_state.query_mode in ("add", "edit"):
             except Exception as e:
                 st.error(f"Erreur : {e}")
 
-# --- BOUTON "AJOUTER UNE REQUÊTE" ---
-if st.session_state.query_mode is None:
-    if st.button("➕ Ajouter une requête"):
-        st.session_state.query_mode = "add"
-        st.rerun()
-
 # --- LISTE DES REQUÊTES ---
 if st.session_state.query_mode is None:
     st.subheader("📜 Liste des requêtes")
+    
+    # Afficher le filtre actif
+    if st.session_state.selected_db != "all":
+        current_db_name = next(db[1] for db in db_list if db[0] == st.session_state.selected_db)
+        st.info(f"Filtrage actif : Base de données {current_db_name}")
+    
     if not queries:
         st.info("Aucune requête enregistrée.")
     else:
         # Affichage sous forme de tableau avec actions
         for q in queries:
+            # Récupérer le nom de la base pour l'affichage
+            db_name = next((db[1] for db in db_list if db[0] == q['db_id']), "Inconnue")
+            
             col1, col2, col3 = st.columns([4, 1, 1])
-            col1.markdown(f"**{q['name']}** – Base ID: {q['db_id']} – Rôles: {q['roles']}")
+            col1.markdown(f"**{q['name']}** – Base: {db_name} – Rôles: {q['roles']}")
 
             if col2.button("✏️ Modifier", key=f"edit_{q['id']}"):
                 st.session_state.query_mode = "edit"

@@ -268,7 +268,28 @@ def delete_query(query_id: int) -> bool:
         cursor.execute("DELETE FROM queries WHERE id = ?", (query_id,))
         conn.commit()
     return cursor.rowcount > 0
-
+# ==========================
+# READ - Récupère les requêtes par ID de base de données
+# ==========================
+def get_queries_by_db_id(db_id: int) -> List[Dict[str, Any]]:
+    """
+    Retourne la liste des requêtes pour une base de données spécifique.
+    """
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, name, sql_text, parameters, roles, db_id FROM queries WHERE db_id = ?", (db_id,))
+        rows = cursor.fetchall()
+        return [
+            {
+                "id": r[0],
+                "name": r[1],
+                "sql_text": r[2],
+                "parameters": r[3],
+                "roles": r[4],
+                "db_id": r[5]
+            }
+            for r in rows
+        ]
 # ==========================
 # TEST
 # ==========================
