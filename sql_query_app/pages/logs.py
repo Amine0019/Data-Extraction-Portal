@@ -27,8 +27,9 @@ def get_logs(filter_user=None, filter_status=None, limit=1000):
     try:
         conn = sqlite3.connect(DB_PATH)
         
+        # Modification : ne plus sélectionner la colonne 'id'
         query = """
-            SELECT id, username, query_id, timestamp, status, message 
+            SELECT username, query_id, timestamp, status, message 
             FROM logs 
             WHERE 1=1
         """
@@ -52,6 +53,7 @@ def get_logs(filter_user=None, filter_status=None, limit=1000):
     except Exception as e:
         st.error(f"Erreur lors de la récupération des logs: {str(e)}")
         return None
+
 
 def delete_old_logs(days=30):
     """Supprime les logs de plus de X jours"""
