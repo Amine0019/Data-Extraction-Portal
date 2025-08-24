@@ -18,27 +18,12 @@ role = st.session_state.get("role")
 if not os.getenv("FERNET_KEY"):
     print("⚠️ ATTENTION: La clé Fernet n'est pas définie dans .env")
 
-
 # Construction de la sidebar conditionnelle
 st.sidebar.title("Navigation")
-pages = {"Accueil": "main.py"}
-if role == "Admin":
-    pages["Admin"] = "pages/admin.py"
-elif role == "Analyste":
-    pages["Analyste"] = "pages/analyst.py"
-elif role == "Utilisateur":
-    pages["Utilisateur"] = "pages/user.py"
 
-# Sélecteur de page (main toujours visible)
-page_names = list(pages.keys())
-selected = st.sidebar.selectbox("Aller à la page :", page_names, index=page_names.index("Accueil"))
-
+# SUPPRIMÉ: Le sélecteur de page et la logique de redirection
 
 logout_button()
-
-# Redirection si une page autre que main est choisie
-if selected != "Accueil":
-    st.switch_page(pages[selected])
 
 st.title(" Data Extraction Portal ")
 st.info(f"Bienvenue, {st.session_state.get('username', '')} (rôle : {role})")
