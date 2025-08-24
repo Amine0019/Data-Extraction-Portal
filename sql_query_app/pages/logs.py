@@ -67,6 +67,29 @@ def delete_old_logs(days=30):
         st.error(f"Erreur lors de la suppression: {str(e)}")
         return False
 
+def format_timestamp(timestamp_str):
+    """Formate un timestamp en une chaîne lisible"""
+    if not timestamp_str:
+        return "N/A"
+    
+    # Essayer différents formats de date
+    formats = [
+        '%Y-%m-%d %H:%M:%S.%f',  # Format avec microsecondes
+        '%Y-%m-%d %H:%M:%S',      # Format sans microsecondes
+        '%Y-%m-%d %H:%M',         # Format sans secondes
+        '%Y-%m-%d'                # Format date seulement
+    ]
+    
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(timestamp_str, fmt)
+            return dt.strftime('%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            continue
+    
+    # Si aucun format ne fonctionne, retourner la valeur originale
+    return timestamp_str
+
 # ==========================
 # Interface principale
 # ==========================
@@ -93,20 +116,8 @@ with st.spinner("Chargement des logs..."):
 # Affichage des résultats
 if logs_df is not None:
     if not logs_df.empty:
-        # Correction du format de date - gère les microsecondes
-        try:
-            # Essayer de parser avec le format incluant les microsecondes
-            logs_df['timestamp'] = pd.to_datetime(logs_df['timestamp'], format='%Y-%m-%d %H:%M:%S.%f')
-        except ValueError:
-            try:
-                # Si échec, essayer sans les microsecondes
-                logs_df['timestamp'] = pd.to_datetime(logs_df['timestamp'], format='%Y-%m-%d %H:%M:%S')
-            except ValueError:
-                # Si les deux échouent, utiliser l'analyse automatique
-                logs_df['timestamp'] = pd.to_datetime(logs_df['timestamp'], errors='coerce')
-        
-        # Formater l'affichage des dates sans les microsecondes
-        logs_df['timestamp'] = logs_df['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        # Formater les dates
+        logs_df['timestamp'] = logs_df['timestamp'].apply(format_timestamp)
         
         # Afficher le nombre de résultats
         st.success(f"{len(logs_df)} logs trouvés")
