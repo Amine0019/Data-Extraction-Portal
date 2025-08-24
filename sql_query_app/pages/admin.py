@@ -17,6 +17,8 @@ if "user_mode" not in st.session_state:
     st.session_state.user_mode = None  # valeurs : None, "add", "edit"
 if "edit_user_id" not in st.session_state:
     st.session_state.edit_user_id = None
+if "search_query" not in st.session_state:
+    st.session_state.search_query = ""  # Nouvel état pour la recherche
 
 st.title("👤 Gestion des utilisateurs")
 auth.logout_button()
@@ -104,32 +106,68 @@ if st.session_state.user_mode is None:
 # --- LISTE DES UTILISATEURS ---
 if st.session_state.user_mode is None:
     users = user_manager.get_all_users()
-    # Ajout de la colonne Email
-    df = pd.DataFrame(users, columns=["ID", "Nom d'utilisateur", "Rôle", "Actif", "Email"])
-    df["Actif"] = df["Actif"].map({1: "✅", 0: "❌"})
-
-    st.subheader("📋 Liste des utilisateurs")
-    # Ajout d'une colonne pour l'affichage de l'email
-    for _, row in df.iterrows():
-        col1, col2, col3, col4, col5, col6 = st.columns([3, 2, 1, 2, 1, 1])
-
-        col1.write(row["Nom d'utilisateur"])
-        col2.write(row["Rôle"])
-        col3.write(row["Actif"])
-        col4.write(row["Email"])  # Affichage de l'email
-
-        if col5.button("✏️", key=f"edit_{row['ID']}"):
-            st.session_state.user_mode = "edit"
-            st.session_state.edit_user_id = row["ID"]
+    
+    # Ajout de la barre de recherche
+    search_col1, search_col2 = st.columns([5, 1])
+    with search_col1:
+        search_query = st.text_input(
+            "🔍 Rechercher par nom d'utilisateur",
+            value=st.session_state.search_query,
+            placeholder="Entrez le nom d'un utilisateur..."
+        )
+    
+    with search_col2:
+        st.write("")  # Espace vide pour l'alignement vertical
+        st.write("")  # Espace vide pour l'alignement vertical
+        if st.button("🗑️ Effacer", use_container_width=True):
+            st.session_state.search_query = ""
             st.rerun()
+    
+    # Mettre à jour la requête de recherche dans l'état de session
+    if search_query != st.session_state.search_query:
+        st.session_state.search_query = search_query
+        st.rerun()
+    
+    # Filtrer les utilisateurs basés sur la recherche
+    if st.session_state.search_query:
+        filtered_users = [
+            user for user in users 
+            if st.session_state.search_query.lower() in user[1].lower()
+        ]
+        st.info(f"{len(filtered_users)} utilisateur(s) trouvé(s) pour '{st.session_state.search_query}'")
+    else:
+        filtered_users = users
+    
+    if not filtered_users:
+        st.warning("Aucun utilisateur ne correspond à votre recherche")
+    else:
+        # Création du DataFrame avec les utilisateurs filtrés
+        df = pd.DataFrame(filtered_users, columns=["ID", "Nom d'utilisateur", "Rôle", "Actif", "Email"])
+        df["Actif"] = df["Actif"].map({1: "✅", 0: "❌"})
 
-        if col6.button("🗑", key=f"delete_{row['ID']}"):
-            if row["ID"] == st.session_state["user_id"]:
-                st.warning("Impossible de supprimer votre propre compte.")
-            else:
-                ok, msg = user_manager.delete_user(row["ID"], st.session_state["user_id"])
-                if ok:
-                    st.success(msg)
-                    st.rerun()
+        st.subheader("📋 Liste des utilisateurs")
+        
+        # Ajout d'une colonne pour l'affichage de l'email
+        for _, row in df.iterrows():
+            col1, col2, col3, col4, col5, col6 = st.columns([3, 2, 1, 2, 1, 1])
+
+            col1.write(row["Nom d'utilisateur"])
+            col2.write(row["Rôle"])
+            col3.write(row["Actif"])
+            col4.write(row["Email"])  # Affichage de l'email
+
+            if col5.button("✏️", key=f"edit_{row['ID']}"):
+                st.session_state.user_mode = "edit"
+                st.session_state.edit_user_id = row["ID"]
+                st.rerun()
+
+            if col6.button("🗑", key=f"delete_{row['ID']}"):
+                if row["ID"] == st.session_state["user_id"]:
+                    st.warning("Impossible de supprimer votre propre compte.")
                 else:
-                    st.error(msg)
+                    ok, msg = user_manager.delete_user(row["ID"], st.session_state["user_id"])
+                    if ok:
+                        st.success(msg)
+                        st.rerun()
+                    else:
+                        st.error(msg)
