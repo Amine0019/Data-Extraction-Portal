@@ -170,16 +170,3 @@ with st.expander("❓ Aide et instructions"):
     - Signalez les erreurs pour qu'elles soient corrigées
     """)
 
-# ==============================
-# Historique des exécutions (simplifié)
-# ==============================
-if "execution_history" not in st.session_state:
-    st.session_state.execution_history = []
-
-if st.button("📊 Afficher l'historique des exécutions"):
-    if st.session_state.execution_history:
-        st.write("### Historique récent des exécutions")
-        for i, history_item in enumerate(st.session_state.execution_history[-5:]):
-            st.write(f"{i+1}. {history_item['query']} - {history_item['timestamp']}")
-    else:
-        st.info("Aucune exécution enregistrée dans l'historique.")
