@@ -23,6 +23,8 @@ if "edit_conn_id" not in st.session_state:
     st.session_state.edit_conn_id = None
 if "form_data" not in st.session_state:
     st.session_state.form_data = {}
+if "search_query" not in st.session_state:
+    st.session_state.search_query = ""
 
 st.title("🔌 Gestion des connexions aux bases de données")
 
@@ -118,40 +120,74 @@ if st.session_state.connection_mode is None:
     else:
         st.subheader("📋 Connexions existantes")
         
-        # Création d'un DataFrame pour un affichage tabulaire
-        df = pd.DataFrame(connections, columns=["ID", "Nom", "Type", "Hôte", "Port", "Base de données", "Utilisateur"])
+        # Ajout de la barre de recherche avec bouton effacer aligné
+        search_col1, search_col2 = st.columns([5, 1])  # Modifié pour donner plus d'espace à la recherche
+        with search_col1:
+            search_query = st.text_input(
+                "🔍 Rechercher par nom",
+                value=st.session_state.search_query,
+                placeholder="Entrez le nom d'une connexion..."
+            )
         
-        for _, row in df.iterrows():
-            col1, col2, col3, col4, col5, col6, col7 = st.columns([3, 2, 2, 2, 2, 1, 1])
-            
-            col1.write(f"**{row['Nom']}**")
-            col2.write(f"`{row['Type']}`")
-            col3.write(row["Hôte"])
-            col4.write(str(row["Port"]))
-            col5.write(row["Base de données"])
-            col6.write(row["Utilisateur"])
-            
-            # Bouton Tester
-            if col7.button("🧪", key=f"test_{row['ID']}"):
-                success, message = test_connection(row['ID'])
-                if success:
-                    st.success(f"✅ {message}")
-                else:
-                    st.error(f"❌ {message}")
-            
-            # Bouton Modifier
-            if col7.button("✏️", key=f"edit_{row['ID']}"):
-                st.session_state.connection_mode = "edit"
-                st.session_state.edit_conn_id = row["ID"]
+        with search_col2:
+            st.write("")  # Espace vide pour l'alignement vertical
+            st.write("")  # Espace vide pour l'alignement vertical
+            if st.button("🗑️ Effacer", use_container_width=True):
+                st.session_state.search_query = ""
                 st.rerun()
+        
+        # Mettre à jour la requête de recherche dans l'état de session
+        if search_query != st.session_state.search_query:
+            st.session_state.search_query = search_query
+            st.rerun()
+        
+        # Filtrer les connexions basées sur la recherche
+        if st.session_state.search_query:
+            filtered_connections = [
+                conn for conn in connections 
+                if st.session_state.search_query.lower() in conn[1].lower()
+            ]
+            st.info(f"{len(filtered_connections)} connexion(s) trouvée(s) pour '{st.session_state.search_query}'")
+        else:
+            filtered_connections = connections
+        
+        if not filtered_connections:
+            st.warning("Aucune connexion ne correspond à votre recherche")
+        else:
+            # Création d'un DataFrame pour un affichage tabulaire
+            df = pd.DataFrame(filtered_connections, columns=["ID", "Nom", "Type", "Hôte", "Port", "Base de données", "Utilisateur"])
             
-            # Bouton Supprimer
-            if col7.button("🗑️", key=f"delete_{row['ID']}"):
-                ok, msg = delete_connection(row["ID"])
-                if ok:
-                    st.success(msg)
+            for _, row in df.iterrows():
+                col1, col2, col3, col4, col5, col6, col7 = st.columns([3, 2, 2, 2, 2, 1, 1])
+                
+                col1.write(f"**{row['Nom']}**")
+                col2.write(f"`{row['Type']}`")
+                col3.write(row["Hôte"])
+                col4.write(str(row["Port"]))
+                col5.write(row["Base de données"])
+                col6.write(row["Utilisateur"])
+                
+                # Bouton Tester
+                if col7.button("🧪", key=f"test_{row['ID']}"):
+                    success, message = test_connection(row['ID'])
+                    if success:
+                        st.success(f"✅ {message}")
+                    else:
+                        st.error(f"❌ {message}")
+                
+                # Bouton Modifier
+                if col7.button("✏️", key=f"edit_{row['ID']}"):
+                    st.session_state.connection_mode = "edit"
+                    st.session_state.edit_conn_id = row["ID"]
                     st.rerun()
-                else:
-                    st.error(msg)
-            
-            st.divider()
+                
+                # Bouton Supprimer
+                if col7.button("🗑️", key=f"delete_{row['ID']}"):
+                    ok, msg = delete_connection(row["ID"])
+                    if ok:
+                        st.success(msg)
+                        st.rerun()
+                    else:
+                        st.error(msg)
+                
+                st.divider()
