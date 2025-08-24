@@ -1,10 +1,10 @@
 import pyodbc
 import pandas as pd
 import streamlit as st
-from modules import query_manager, db_connection
+from modules import query_manager, db_connection 
 import re
 from typing import List, Dict, Any, Optional
-
+from modules.logger import log_action
 # ==============================
 # Charger les requêtes selon le rôle et la base de données
 # ==============================
@@ -54,12 +54,17 @@ def get_query_parameters(query: dict) -> List[str]:
 def execute_query(query: dict, params: dict) -> Optional[pd.DataFrame]:
     """
     Exécute la requête SQL prédéfinie avec pyodbc et retourne un DataFrame
+    + Journalisation dans la table logs
     """
+    username = st.session_state.get("username", "unknown")  # Récupérer l’utilisateur
+    query_id = query.get("id", None)
+
     try:
         # 1️⃣ Récupérer la connexion
         db_info = db_connection.get_connection_by_id(query["db_id"])
         if not db_info:
             st.error("Connexion introuvable en base.")
+            log_action(username, query_id, "error", "Connexion introuvable en base")
             return None
 
         # Déchiffrer le mot de passe
@@ -67,60 +72,66 @@ def execute_query(query: dict, params: dict) -> Optional[pd.DataFrame]:
             db_info["password"] = db_connection.decrypt_password(db_info["password"])
         except Exception as e:
             st.error(f"Erreur de déchiffrement du mot de passe: {str(e)}")
+            log_action(username, query_id, "error", f"Déchiffrement impossible: {str(e)}")
             return None
 
         # 2️⃣ Établir la connexion
-        # Utiliser la classe DatabaseConnection de db_connection
         db = db_connection.DatabaseConnection(db_info)
         conn = db.get_connection()
         
         if not conn:
             st.error("Échec de la connexion à la base de données.")
+            log_action(username, query_id, "error", "Échec connexion DB")
             return None
 
         cursor = conn.cursor()
 
         # 3️⃣ Préparer la requête SQL avec paramètres
         sql = query["sql_text"]
-        
-        # Remplacer les paramètres nommés par des paramètres positionnels
         param_names = get_query_parameters(query)
+
         for param_name in param_names:
             if param_name in params:
-                # Échapper le nom du paramètre pour éviter les conflits
-                placeholder = "?"
-                sql = re.sub(rf":{param_name}\b", placeholder, sql)
-        
-        # Préparer les valeurs dans l'ordre d'apparition des paramètres
+                sql = re.sub(rf":{param_name}\b", "?", sql)
+
         values = []
         for param_name in param_names:
             if param_name in params:
                 values.append(params[param_name])
             else:
-                st.error(f"Paramètre manquant: {param_name}")
+                msg = f"Paramètre manquant: {param_name}"
+                st.error(msg)
+                log_action(username, query_id, "error", msg)
                 return None
-        
+
         # 4️⃣ Exécuter la requête
         cursor.execute(sql, values)
-        
-        # Vérifier si c'est une requête qui retourne des résultats
+
         if cursor.description:
             columns = [desc[0] for desc in cursor.description]
             rows = cursor.fetchall()
             df = pd.DataFrame.from_records(rows, columns=columns)
+            log_action(username, query_id, "success", "Requête exécutée avec succès")
         else:
-            # Pour les requêtes qui ne retournent pas de résultats (INSERT, UPDATE, DELETE)
             conn.commit()
-            df = pd.DataFrame({"Status": [f"Query executed successfully. {cursor.rowcount} row(s) affected."]})
-        
+            df = pd.DataFrame({
+                "Status": [f"Query executed successfully. {cursor.rowcount} row(s) affected."]
+            })
+            log_action(username, query_id, "success", f"Écriture en DB : {cursor.rowcount} ligne(s) affectée(s)")
+
         conn.close()
         return df
 
     except pyodbc.Error as e:
-        st.error(f"Erreur de base de données: {str(e)}")
+        msg = f"Erreur de base de données: {str(e)}"
+        st.error(msg)
+        log_action(username, query_id, "error", msg)
         return None
+
     except Exception as e:
-        st.error(f"Erreur inattendue: {str(e)}")
+        msg = f"Erreur inattendue: {str(e)}"
+        st.error(msg)
+        log_action(username, query_id, "error", msg)
         return None
 
 # ==============================
